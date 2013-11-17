@@ -1,0 +1,213 @@
+/*
+ * Autor: Rafał Kowalski
+ * Wersja: 1.0
+ * Data: 25.10.2013r
+ */
+//import biblioteczek
+#include <RCSwitch.h>
+
+//inicjacja 
+RCSwitch mySwitch = RCSwitch();
+
+//przypisanie portów
+int axis_y      = 0; //oś wysokości
+int axis_x      = 1; //oś skrętu
+int axis_z      = 2; //oś prędkości
+int axis_servo  = 3; //oś serwa
+int transmiter  = 10; //nadajnik musi być PWM
+
+//przypisanie wartości zerowych
+int min_default_y_value      = 370;
+int max_default_y_value      = 390;
+int min_default_servo_value  = 480;
+int max_default_servo_value  = 500;
+int min_default_z_value      = 510;
+int max_default_z_value      = 530;
+int min_default_x_value      = 535;
+int max_default_x_value      = 555;
+
+//przypisanie wartości maksymalnych
+int y_max_value      = 730;
+int servo_max_value  = 800;
+int z_max_value      = 850;
+int x_max_value      = 880;
+
+//przypisanie wartości minimalnych
+int y_min_value      = 200;
+int servo_min_value  = 170;
+int z_min_value      = 210;
+int x_min_value      = 190;
+
+//zmienne przechowujące kąt wychenie potencjometru
+int ratio_of_y_inclination      = 0;
+int ratio_of_servo_inclination  = 0;
+int ratio_of_z_inclination      = 0;
+int ratio_of_x_inclination      = 0;
+
+//zmiene przechowujące wartości typu int gotowe do wysłania
+int y_to_send      = 0;
+int servo_to_send  = 0;
+int z_to_send      = 0;
+int x_to_send      = 0;
+
+//funkcja setup
+void setup( )
+{
+   //ustawianie pinów w tryp INPUT
+   pinMode( axis_y, INPUT );
+   pinMode( axis_x, INPUT );
+   pinMode( axis_z, INPUT );
+   pinMode( axis_servo, INPUT );
+   
+   //ustawienia transmitera
+   mySwitch.enableTransmit( transmiter );  //ustawienie portu transmitera
+   mySwitch.setProtocol(1); 
+   mySwitch.setPulseLength(180);
+   //mySwitch.setRepeatTransmit(1); 
+   //inicja Serialu
+   Serial.begin( 9600 );
+}
+
+//funckja parse_axis_y dostosowuje sygnal z osi wysokości do zastosowanej logiki
+int parse_axis_y( )
+{
+  float temp_y = float( analogRead( axis_y ) ) - 100; //zczytanie wartości z potencjometru wysokości 
+  if( temp_y > min_default_y_value && temp_y < max_default_y_value )  //warunek przypisujące 50% - położenie tricoptera w zwisie
+  {
+    return 50;
+  }
+  else
+  {
+    ratio_of_y_inclination = (temp_y*100/y_max_value);
+    return ratio_of_y_inclination;
+  }
+}
+
+//funkcja parse_axis_servo dopasowuje sygnał z osi serwa do zastosowaniej logiki
+int parse_axis_servo( )
+{
+  float temp_servo = float( analogRead( axis_servo ) ); //pobranie waartość potencjometru serwa
+  if( temp_servo > min_default_servo_value && temp_servo < max_default_servo_value ) //warunek przypisujący 30% (zerowe położenie) serwa
+  {
+    return 30;
+  }
+  else
+  {
+    ratio_of_servo_inclination = ( ( temp_servo*100 ) / servo_max_value ) - 30;
+    if( temp_servo >= max_default_servo_value ) //warunek obliczający położenie potencjometru  (wychył w prawo) - dane tech 60% (60 - 30 = 30 - jako 100%)
+    {
+      if( ratio_of_servo_inclination > 60 ) //warunek sprawdzający czy wartość mieści w zakresie, w przeciwnym razie przypisuje wartość max
+      {
+        return 60;
+      }
+      else
+      {
+        return ratio_of_servo_inclination;
+      }
+    }
+    else if( temp_servo <= min_default_servo_value ) //warunek obliczający położenie potencjometru (wychył w lewo) - dane tech (30 - 30 = 0 jako 0%)
+    {
+      if( ratio_of_servo_inclination < 0 )  //warunek sprawdzający czy wartość mieści się w zakresie w przeciwnym razie przypisuje wartość min
+      {
+        return 0;
+      }
+      else
+      {
+        return ratio_of_servo_inclination;
+      }
+    }
+  }
+}
+
+//fukcja parse_axis_z dopasowuje sygnał z osi prędkości do zastosowanej logiki
+int parse_axis_z( )
+{
+  float temp_z = float( analogRead( axis_z ) ); //pobranie wartości z potencjometru prędkości
+  //Serial.println(temp_z);
+  if( temp_z > min_default_z_value && temp_z < max_default_z_value ) //warunek przypisujący 30% (zerowe położenie) osi prędkości
+  {
+    return 30;
+  }
+  else
+  {
+    ratio_of_z_inclination = ( ( temp_z*100 ) / z_max_value ) - 30;
+    if( temp_z >= max_default_z_value ) //warunek obliczający położenie potencjometru  (wychył w góre) - dane tech 60% (60 - 30 = 30 - jako 100%)
+    {
+      if( ratio_of_z_inclination > 60 ) //warunek sprawdzający czy wartość mieści w zakresie, w przeciwnym razie przypisuje wartość max
+      {
+        return 60;
+      }
+      else
+      {
+        return ratio_of_z_inclination;
+      }
+    }
+    else if (temp_z <= min_default_z_value ) //warunek obliczający położenie potencjometru (wychył w dół) - dane tech (30 - 30 = 0 jako 0%)
+    {
+      if( ratio_of_z_inclination < 0 ) //warunek sprawdzający czy wartość mieście się w zakresie, w przeciwnym razie przypisuje wartość min
+      {
+        return 0;
+      }
+      else
+      {
+        return ratio_of_z_inclination;
+      }
+    }
+  }
+}
+
+//funkcja parse_axis_x dopasowuje sygnał z osi skrętu do zastosowanej logiki
+int parse_axis_x( )
+{
+  float temp_x = float( analogRead( axis_x ) );
+  //Serial.println(temp_x);
+  if( temp_x > min_default_x_value && temp_x < max_default_x_value )
+  {
+    return 30;
+  }
+  else
+  {
+    ratio_of_x_inclination = ( (temp_x * 100 ) / x_max_value ) - 30;
+    if( temp_x >= max_default_x_value )
+    {
+      if( ratio_of_x_inclination > 60 )
+      {
+        return 60;
+      }
+      else
+      {
+        return ratio_of_x_inclination;
+      }
+    }
+    else if( temp_x <= min_default_x_value )
+    {
+      if( ratio_of_x_inclination < 0 )
+      {
+        return 0;
+      }
+      else
+      {
+        return ratio_of_x_inclination;
+      }
+    }
+  }
+}
+
+//funckja ułatwiające wysyłanie inforamcji
+void my_send( int value_to_send, int bit_to_send )
+{
+  mySwitch.send(value_to_send, bit_to_send);
+}
+
+//głowna funkja programu
+void loop()
+{
+  y_to_send = parse_axis_y( );
+  servo_to_send = parse_axis_servo( );
+  z_to_send = parse_axis_z( );
+  x_to_send = parse_axis_x();
+  my_send( y_to_send, 10 );
+  my_send( x_to_send, 11 );
+  my_send( z_to_send, 12 );
+  my_send( servo_to_send, 13 );
+}
