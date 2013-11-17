@@ -85,8 +85,6 @@ void get_data( )
         servo   = value; 
         break;
       }
-      Serial.print("receive delay: ");
-      Serial.println( receive_delay );
     }
     mySwitch.resetAvailable();
   }
@@ -144,7 +142,17 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
    {
      if( MPU_test_connection == 1 && ASR_tricopter == 1 )
      {
-       //kod porgramu z żyroskopem (poziomowanie)
+       if( x == 30 && z == 30 && servo == 30 )
+       {
+        //sterowanie tylko wysokością
+        silnik_left_control = silnik_right_control = y_control( );
+        silnik_back_control = y_control( ) - stabilization_program;
+        send_data_to_engine( silnik_left_control, silnik_right_control, silnik_back_control, 30 );
+       }
+       else
+       {
+        // sterowanie jak narazie we wszystkich osiach
+       }
      }
      else if( MPU_test_connection == 0 && ASR_tricopter == 1 )
      {
