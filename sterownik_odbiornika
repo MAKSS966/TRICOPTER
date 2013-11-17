@@ -1,0 +1,171 @@
+/*
+ * Autor: Rafał Kowalski
+ * Data:  16.11.2013r   
+ */
+//lincludowanie potrzebny biblioteczek
+#include <RCSwitch.h> //odbiornik
+#include <Servo.h> //sterowanie silnikami (ESC) i serwem (tylni silnik)
+#include <Wire.h> //Żyroskop/akcelometr
+#include <I2Cdev.h>
+#include <MPU6050.h>
+
+//inicjacja zmiennych obługujących peryferia
+RCSwitch mySwitch = RCSwitch(); //odbiornik
+MPU6050 accelgyro; //żyroskop/akcelometr
+Servo silnik_left;
+Servo silnik_right;
+Servo silnik_back;
+Servo servo_sterowanie; //silniki (ESC), silnik
+
+//zmienne przechowujace wartości wychyleń potencjometrów
+int y,x,z,servo = 0;
+
+//wartość programowej stabilizacji
+int stabilization_program = 7; //wartość bezwględna
+
+//zmienne adresujące silniki (piny)
+int silnik_left_pin  = 13; //lewy
+int silnik_right_pin = 12; //prawy
+int silnik_back_pin  = 11; //back
+
+//zmienna przyspisując pin do serwa
+int servo_pin = 10;
+
+//zmienna przypisująca pin do odbiornika musi być PWM
+int receive_pin = 1; //przeusięcie o 2 (n+2)
+
+//zmienna sprawdzająca połączenie z żyroskopem
+bool MPU_test_connection = false;
+
+//zmienne pomocne w syterowaniu silników
+int silnik_left_control  = 0;
+int silnik_right_control = 0;
+int silnik_back_control  = 0;
+
+//zmienne przechowujące informacje z żyroskopu/akcelometru
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+
+//zmienne przechowujące dodatkowe fukncje tricoptera
+bool ASR_tricopter = true; //określa czy brać pod uwagę info z żyroskopu czy nie
+
+//zmienne pomocnicze w odbiorze 
+int value = 0;
+int bit_lenght = 0;
+int receive_delay = 0; 
+int i = 0;
+int j = 0;
+
+//fukcja pobierająca dane z odbiornika
+void get_data( )
+{
+  if ( mySwitch.available() ) 
+  {
+    value          = mySwitch.getReceivedValue();
+    bit_lenght     = mySwitch.getReceivedBitlength();
+    if (value == 0)
+    {
+      Serial.print("Nieznana wiadomość");
+    } 
+    else 
+    {
+      receive_delay  = mySwitch.getReceivedDelay();
+      switch( bit_lenght )
+      {
+      case 10: 
+        y       = value; 
+        break;
+      case 11: 
+        x       = value; 
+        break;
+      case 12: 
+        z       = value; 
+        break;
+      case 13: 
+        servo   = value; 
+        break;
+      }
+      Serial.print("receive delay: ");
+      Serial.println( receive_delay );
+    }
+    mySwitch.resetAvailable();
+  }
+}
+void setup() 
+{
+  //inicjala serialu
+  Serial.begin(9600);
+
+  //inicjacja odbiornika
+  mySwitch.enableReceive( receive_pin );
+
+  //inicjacja ESC i serva
+  silnik_left.attach( silnik_left_pin );
+  silnik_right.attach( silnik_right_pin );
+  silnik_back.attach( silnik_back_pin );
+  servo_sterowanie.attach( servo_pin );
+
+  //inicjacja żyroskopu/akcelometru
+  Wire.begin();
+  accelgyro.initialize();
+  MPU_test_connection = accelgyro.testConnection();
+}
+
+//zmienna kontrolujaca wysokość
+int y_control ( )
+{
+  int y_temp = map( y, 14, 100, 0, 179);
+
+}
+
+//funckja wysyłająca dane do silników (ESC) i serwa
+void send_data_to_engine( int left_engine, int right_engine, int back_engine, int servo_rorate )
+{
+  silnik_left.write( left_engine );
+  silnik_right.write( right_engine );
+  silnik_back.write( back_engine );
+  servo_sterowanie.write( servo_rorate );
+}
+/*
+ * Główna funckja programu
+ * pętla liczy sprawdza czy jest sygnał z nadajnika (po określeniu opóżnień), 
+ * liczy do 10, zeruje otrzymaną wartość opóźnia i wrazie braku ponownego ustawienia tej wartości powyzej 0 liczy do 5 
+ * a następnie program wchodzi w tryb awaryjny powolnie opuszczając tricopter
+ */
+ void loop() 
+ {
+   if(i == 10)
+   {
+     receive_delay = 0;
+     i=0;
+   }
+   get_data( );
+   if( receive_delay > 0 )
+   {
+     if( MPU_test_connection == 1 && ASR_tricopter == 1 )
+     {
+       //kod porgramu z żyroskopem (poziomowanie)
+     }
+     else if( MPU_test_connection == 0 && ASR_tricopter == 1 )
+     {
+       Serial.println( "Brak info z żyroskopu mimo iż jest potrzebne" );
+     }
+     else
+     {
+       //kod programu - uwolniony tricopter
+     }
+     j = 0;
+   }
+   else
+   {
+     j++;
+     if( j > 5 )
+     {
+       Serial.println("Brak sygnału, opadanie");
+     }
+   }
+   i++;
+   delay(45);
+ }
+ 
+ 
