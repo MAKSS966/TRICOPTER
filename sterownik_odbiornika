@@ -42,6 +42,10 @@ int silnik_left_control  = 0;
 int silnik_right_control = 0;
 int silnik_back_control  = 0;
 
+//wartość przechowujące przeliczone wartość z MPU6050
+float roll = 0; //przechylenie (lewo,prawo)
+float pitch = 0; //pochylenie (przód,tył)
+
 //zmienne przechowujące informacje z żyroskopu/akcelometru
 int16_t ax, ay, az;
 int16_t gx, gy, gz;
@@ -129,6 +133,18 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
   silnik_back.write( back_engine );
   servo_sterowanie.write( servo_rorate );
 }
+
+//funkcja odpowiadająca za odbiór i opracowanie danych z MPU6050
+void accelgyro_parser( )
+{
+  accelgyro.getMotion6(&gx, &gy, &gz, &ax, &ay, &az); //Pobranie wartość ż MPU6050;
+  float gX = gx * 0.004;
+  float gY = gy * 0.004;
+  float gZ = gz * 0.004;
+  roll  = atan2( gX, gZ ) * 180 / PI;
+  pitch = atan2( gY, gZ ) * 180 / PI;
+}
+
 /*
  * Główna funckja programu
  * pętla liczy sprawdza czy jest sygnał z nadajnika (po określeniu opóżnień), 
@@ -137,8 +153,8 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
  */
  void loop() 
  {
-   MPU_test_connection = accelgyro.testConnection();
-   accelgyro.getMotion6(&gx, &gy, &gz, &ax, &ay, &az);
+   MPU_test_connection = accelgyro.testConnection( );
+   accelgyro_parser( );
    if(i == 10)
    {
      receive_delay = 0;
@@ -150,15 +166,40 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
    {
      if( MPU_test_connection == 1 && ASR_tricopter == 1 )
      {
-       send_data_to_engine( y_temp, y_temp, y_temp, 0);
+       silnik_left_control = silnik_right_control = silnik_back_control = y_temp;
+       if( roll > 2 )
+       {
+         //poziom lewy silnik
+       } 
+       else if( roll < -2 )
+       {
+         //poziom prawy silnik
+       }
+       if( pitch < -2 )
+       {
+         //poziom przód
+       }
+       else if( pitch > 2 )
+       {
+         //poziom tył
+       }
      }
      else if( MPU_test_connection == 0 && ASR_tricopter == 1 )
      {
-       //Serial.println( "Brak info z żyroskopu mimo iż jest potrzebne" );
+       /*
+       if( hight > 5 cm )
+       {
+         //swobodne opadania
+       }
+       else
+       {
+         //odcięcie silników
+       }
+       */
      }
      else
      {
-       //sterowanie na własną odpowiedzialność
+        //sterowanie na własną odpowiedzialność
      }
      j = 0;
    }
@@ -167,6 +208,14 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
      j++;
      if( j > 5 )
      {
+       if( MPU_test_connection == 1 )
+       {
+           //opadanie z poziomownaiem
+       }
+       else
+       {
+         //opadanie na wyczucie
+       }
        send_data_to_engine( 0, 0, 0, 0 ); //TODO: łagodne opadanie
      }
    }
