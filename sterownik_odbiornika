@@ -24,15 +24,15 @@ int y,x,z,servo = 0;
 int stabilization_program = 7; //wartość bezwględna
 
 //zmienne adresujące silniki (piny)
-int silnik_left_pin  = 13; //lewy
-int silnik_right_pin = 12; //prawy
-int silnik_back_pin  = 11; //back
+int silnik_left_pin  = 11; //lewy 13 dla megi/ uno 11
+int silnik_right_pin = 10; //prawy 12 dla megi/ uno 10
+int silnik_back_pin  = 9; //back 11 dla megi/ uno 9
 
 //zmienna przyspisując pin do serwa
-int servo_pin = 10;
+int servo_pin = 6; //10 dla megi/ uno 6
 
 //zmienna przypisująca pin do odbiornika musi być PWM
-int receive_pin = 1; //przeusięcie o 2 (n+2)
+int receive_pin = 1; //przeusięcie o 1 (n+1)
 
 //zmienna sprawdzająca połączenie z żyroskopem
 bool MPU_test_connection = false;
@@ -85,6 +85,8 @@ void get_data( )
         servo   = value; 
         break;
       }
+     // Serial.print("receive delay: ");
+      //Serial.println( receive_delay );
     }
     mySwitch.resetAvailable();
   }
@@ -107,12 +109,15 @@ void setup()
   Wire.begin();
   accelgyro.initialize();
   MPU_test_connection = accelgyro.testConnection();
+  
+  //ustawienei silników w pozycję startową
+  send_data_to_engine( 0, 0, 0, 0 );
 }
 
 //zmienna kontrolujaca wysokość
 int y_control ( )
 {
-  int y_temp = map( y, 14, 100, 0, 179);
+  
 
 }
 
@@ -132,35 +137,28 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
  */
  void loop() 
  {
+   MPU_test_connection = accelgyro.testConnection();
+   accelgyro.getMotion6(&gx, &gy, &gz, &ax, &ay, &az);
    if(i == 10)
    {
      receive_delay = 0;
      i=0;
    }
    get_data( );
+   int y_temp = map( y, 14, 100, 0, 179);
    if( receive_delay > 0 )
    {
      if( MPU_test_connection == 1 && ASR_tricopter == 1 )
      {
-       if( x == 30 && z == 30 && servo == 30 )
-       {
-        //sterowanie tylko wysokością
-        silnik_left_control = silnik_right_control = y_control( );
-        silnik_back_control = y_control( ) - stabilization_program;
-        send_data_to_engine( silnik_left_control, silnik_right_control, silnik_back_control, 30 );
-       }
-       else
-       {
-        // sterowanie jak narazie we wszystkich osiach
-       }
+       send_data_to_engine( y_temp, y_temp, y_temp, 0);
      }
      else if( MPU_test_connection == 0 && ASR_tricopter == 1 )
      {
-       Serial.println( "Brak info z żyroskopu mimo iż jest potrzebne" );
+       //Serial.println( "Brak info z żyroskopu mimo iż jest potrzebne" );
      }
      else
      {
-       //kod programu - uwolniony tricopter
+       //sterowanie na własną odpowiedzialność
      }
      j = 0;
    }
@@ -169,7 +167,7 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
      j++;
      if( j > 5 )
      {
-       Serial.println("Brak sygnału, opadanie");
+       send_data_to_engine( 0, 0, 0, 0 ); //TODO: łagodne opadanie
      }
    }
    i++;
