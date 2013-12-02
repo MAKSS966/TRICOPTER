@@ -138,13 +138,13 @@ void send_data_to_engine( int left_engine, int right_engine, int back_engine, in
 void accelgyro_parser( )
 {
   accelgyro.getMotion6(&gx, &gy, &gz, &ax, &ay, &az); //Pobranie wartość ż MPU6050;
+  //Serial.println(ax);
   float gX = gx * 0.004;
   float gY = gy * 0.004;
   float gZ = gz * 0.004;
   roll  = atan2( gX, gZ ) * 180 / PI;
   pitch = atan2( gY, gZ ) * 180 / PI;
 }
-
 /*
  * Główna funckja programu
  * pętla liczy sprawdza czy jest sygnał z nadajnika (po określeniu opóżnień), 
@@ -166,26 +166,117 @@ void accelgyro_parser( )
    {
      if( MPU_test_connection == 1 && ASR_tricopter == 1 )
      {
-       silnik_left_control = silnik_right_control = silnik_back_control = y_temp;
-       if( roll > 2 )
-       {
-         //poziom lewy silnik
-       } 
-       else if( roll < -2 )
-       {
-         //poziom prawy silnik
+       if( x == 30 && z == 30 && servo == 30 )
+       { 
+         if( roll > 2 )
+         {
+           do
+           {
+             if( silnik_left_control < 179 )
+             {
+               silnik_left_control += 5;
+             }
+             else
+             {
+               silnik_left_control = 179;
+             }
+           }
+           while( roll < 2 );
+         }
+         else
+         {
+           if( roll > 1 )
+           {
+             silnik_back_control = y_temp;
+           }
+           else
+           {
+             if( pitch > -1 )
+             {
+               silnik_left_control = y_temp;
+             }
+             silnik_back_control = y_temp;
+           }
+         }
+         if( roll < -2 )
+         {
+           do
+           {
+             if( silnik_right_control < 179 )
+             {
+               silnik_right_control += 5;
+             }
+             else
+             {
+               silnik_right_control = 179;
+             }
+           }
+           while( roll > -2 );
+         }
+         else
+         {
+           if( roll < -1 )
+           {
+             silnik_back_control = y_temp;
+           }
+           else
+           {
+             if( pitch > -1 )
+             {
+               silnik_right_control = y_temp;
+             }
+             silnik_back_control = y_temp;
+           }
+         }
+         if( pitch < -2 )
+         {
+           do
+           {
+             if( silnik_left_control < 179   )
+             {
+               silnik_left_control += 2;
+             }
+             else
+             {
+               silnik_left_control = 179;
+             }
+             if( silnik_right_control < 179 )
+             {
+               silnik_right_control += 2;
+             }
+             else
+             {
+               silnik_right_control = 179;
+             }
+           }
+           while( pitch > -2 );     
+         }
+         else
+         {
+         }
+         if( pitch > 2 )
+         {
+           //poziom tył
+         }
+         Serial.print("Lewy silnik: ");
+         Serial.print(silnik_left_control);
+         Serial.print(" Prawy silnik: ");
+         Serial.print(silnik_right_control);
+         Serial.print(" Tylni silnik: ");
+         Serial.print(silnik_back_control);
+         Serial.print(" Przechylenie: ");
+         Serial.print(roll);
+         Serial.print(" Pochylenie :");
+         Serial.println(pitch);
+         send_data_to_engine( silnik_left_control, silnik_right_control, silnik_back_control, 0 );
        }
-       if( pitch < -2 )
+       else
        {
-         //poziom przód
        }
-       else if( pitch > 2 )
-       {
-         //poziom tył
-       }
-     }
+     }    
      else if( MPU_test_connection == 0 && ASR_tricopter == 1 )
      {
+       Serial.println("Brak MPU");
        /*
        if( hight > 5 cm )
        {
@@ -208,6 +299,7 @@ void accelgyro_parser( )
      j++;
      if( j > 5 )
      {
+       Serial.println("Opadanie, brak sygnału");
        if( MPU_test_connection == 1 )
        {
            //opadanie z poziomownaiem
@@ -220,7 +312,7 @@ void accelgyro_parser( )
      }
    }
    i++;
-   delay(45);
+   delay(10);
  }
  
  
